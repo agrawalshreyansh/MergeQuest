@@ -1,18 +1,80 @@
-import React from 'react';
-import ProfileView from './ProfileView'; // Import the new client component
+"use client";
 
-// This is an async Server Component to handle params and data
-export default async function UserProfilePage({ params }) {
+import React, { useEffect, useState } from 'react';
+import ProfileView from './ProfileView';
+
+// Client Component to handle params and data fetching
+export default function UserProfilePage({ params }) {
   const { username } = params;
-
-  // --- All data logic runs on the server ---
-  const userData = {
+  const [userData, setUserData] = useState({
     name: username.replace('-', ' '),
     title: 'Software Engineer | Open Source Enthusiast',
     avatarUrl: `https://i.pravatar.cc/150?u=${username}`,
+  });
+  const [userId, setUserId] = useState(null);
+  const [userScore, setUserScore] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch user data from localStorage
+  useEffect(() => {
+    const getUserFromLocalStorage = () => {
+      try {
+        const userDataString = localStorage.getItem('userData');
+        if (userDataString) {
+          const storedUserData = JSON.parse(userDataString);
+          if (storedUserData) {
+            setUserData({
+              name: storedUserData.name || username.replace('-', ' '),
+              title: 'Software Engineer | Open Source Enthusiast',
+              avatarUrl: storedUserData.avatar_url || `https://i.pravatar.cc/150?u=${username}`,
+            });
+            
+            setUserId(storedUserData._id);
+          }
+        }
+      } catch (error) {
+        console.error("Error getting user data from localStorage:", error);
+      }
+    };
+
+    getUserFromLocalStorage();
+  }, [username]);
+
+  // Fetch user data including score
+  useEffect(() => {
+    if (!userId) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    // Get user data from localStorage or API
+    const getUserData = () => {
+      try {
+        const userDataString = localStorage.getItem('userData');
+        if (userDataString) {
+          const userData = JSON.parse(userDataString);
+          if (userData && userData.total_points) {
+            setUserScore(userData.total_points);
+          }
+        }
+        setLoading(false);
+      } catch (err) {
+        console.error("Error getting user data:", err);
+        setError(err.message || "Unknown error");
+        setLoading(false);
+      }
+    };
+    
+    getUserData();
+  }, [userId]);
+
+  const progressData = { 
+    title: 'PR Machine', 
+    percentage: 76, 
+    description: 'You are 5 PRs away from unlocking the PR Machine badge!' 
   };
   
-  const progressData = { title: 'PR Machine', percentage: 76, description: 'You are 5 PRs away from unlocking the PR Machine badge!' };
   const statsData = [
     { id: 1, title: 'Pull Requests', value: '25' },
     { id: 2, title: 'Stars Received', value: '150' },
@@ -34,13 +96,13 @@ export default async function UserProfilePage({ params }) {
     };
   });
   
-  // --- Render the Client Component and pass the data as props ---
   return (
     <ProfileView 
       user={userData}
       progress={progressData}
       stats={statsData}
       graphData={processedGraphData}
+      userScore={userScore}
     />
   );
 }

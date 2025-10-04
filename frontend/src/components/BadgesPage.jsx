@@ -1,86 +1,73 @@
 "use client";
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 
-// Data for all the badges.
-// You can easily add or remove badges here.
-// Images are named 1.png to 8.png as you specified, placed in the /public folder.
-// I've added all 10 from your design and reused images for the last two.
-const badgesData = [
+// Mapping between backend badge names and frontend display names
+const badgeMapping = {
+	'Newbie Committer': { id: 1, title: 'Newbie Committer', image: '/1.png', range: [10, 99] },
+	'Rising Contributor': { id: 2, title: 'Rising Contributor', image: '/2.png', range: [100, 249] },
+	'Issue Solver': { id: 3, title: 'Issue Solver', image: '/3.png', range: [250, 499] },
+	'Merge Artisian': { id: 4, title: 'Merge Artisian', image: '/4.png', range: [500, 749] },
+	'PR Ninja': { id: 5, title: 'PR Ninja', image: '/5.png', range: [750, 999] },
+	'Open Source Expert': { id: 6, title: 'Open Source Expert', image: '/6.png', range: [1000, 1249] },
+	'Open Source Guru': { id: 7, title: 'Open Source Guru', image: '/7.png', range: [1250, 1499] },
+	'Open Source Samurai': { id: 8, title: 'Open Source Samurai', image: '/8.png', range: [1500, 10000] },
+};
+
+// Default badges data (all locked initially)
+const defaultBadgesData = [
 	{
 		id: 1,
-		title: 'PR Novice',
-		tier: 'Bronze Tier',
+		title: 'Newbie Committer',
 		image: '/1.png',
-		locked: false,
+		locked: true,
 	},
 	{
 		id: 2,
-		title: 'Star Collector',
-		tier: 'Silver Tier',
+		title: 'Rising Contributor',
 		image: '/2.png',
-		locked: false,
+		locked: true,
 	},
 	{
 		id: 3,
-		title: 'Commit Streak',
-		tier: 'Gold Tier',
+		title: 'Issue Solver',
 		image: '/3.png',
-		locked: false,
+		locked: true,
 	},
 	{
 		id: 4,
-		title: 'Issue Solver',
-		tier: 'Locked',
+		title: 'Merge Artisian',
 		image: '/4.png',
 		locked: true,
 	},
 	{
 		id: 5,
-		title: 'Code Reviewer',
-		tier: 'Locked',
+		title: 'PR Ninja',
 		image: '/5.png',
 		locked: true,
 	},
 	{
 		id: 6,
-		title: 'Project Contributor',
-		tier: 'Diamond Tier',
+		title: 'Open Source Expert',
 		image: '/6.png',
-		locked: false,
+		locked: true,
 	},
 	{
 		id: 7,
-		title: 'Community Builder',
-		tier: 'Locked',
+		title: 'Open Source Guru',
 		image: '/7.png',
 		locked: true,
 	},
 	{
 		id: 8,
-		title: 'Open Source Advocate',
-		tier: 'Legendary Tier',
+		title: 'Open Source Samurai',
 		image: '/8.png',
-		locked: false,
-	},
-	{
-		id: 9,
-		title: 'GitGamer Elite',
-		tier: 'Locked',
-		image: '/1.png', // Reusing image as per your count
-		locked: true,
-	},
-	{
-		id: 10,
-		title: 'Legendary Coder',
-		tier: 'Locked',
-		image: '/2.png', // Reusing image as per your count
 		locked: true,
 	},
 ];
 
 // Badge Component
-const Badge = ({ title, tier, image, locked }) => (
+const Badge = ({ title, image, locked }) => (
 	<div className="transform transition-all duration-500 hover:scale-105 relative">
 		<div className="relative w-40 h-40 md:w-48 md:h-48 lg:w-72 lg:h-72">
 			<Image
@@ -115,14 +102,150 @@ const Badge = ({ title, tier, image, locked }) => (
 				{title}
 			</h3>
 			<p className={`text-lg ${locked ? 'text-gray-500' : 'text-purple-400'}`}>
-				{tier}
+				{locked ? 'Locked' : 'Unlocked'}
 			</p>
 		</div>
 	</div>
 );
 
+// Function to determine the highest badge a user can earn based on their score
+const getHighestBadge = (score) => {
+	let highestBadge = null;
+	
+	// If score is below minimum, return no badge
+	if (score < 10) return null;
+	
+	// Find the highest badge the user can earn based on their score
+	Object.entries(badgeMapping).forEach(([badgeName, badgeInfo]) => {
+		const [min, max] = badgeInfo.range;
+		if (score >= min && score <= max) {
+			highestBadge = {
+				name: badgeName,
+				...badgeInfo
+			};
+		}
+	});
+	
+	return highestBadge;
+};
+
+// Function to determine the next badge a user can earn based on their score
+const getNextBadge = (score) => {
+	let nextBadge = null;
+	
+	// Find the next badge the user can earn
+	const orderedBadges = Object.entries(badgeMapping).sort((a, b) => a[1].range[0] - b[1].range[0]);
+	
+	for (let [badgeName, badgeInfo] of orderedBadges) {
+		const [min, max] = badgeInfo.range;
+		if (score < min) {
+			nextBadge = {
+				name: badgeName,
+				...badgeInfo,
+				pointsNeeded: min - score
+			};
+			break;
+		}
+	}
+	
+	return nextBadge;
+};
+
 // Main Badges Page Component
-export default function BadgesPage() {
+export default function BadgesPage({ userId, userScore: initialUserScore = 0 }) {
+	const [badgesData, setBadgesData] = useState(defaultBadgesData);
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState(null);
+	const [user, setUser] = useState(null);
+	const [userScore, setUserScore] = useState(initialUserScore);
+	const [nextBadge, setNextBadge] = useState(null);
+	
+	// Update userScore when prop changes
+	useEffect(() => {
+		setUserScore(initialUserScore);
+		
+		// Calculate the next badge the user can earn
+		const next = getNextBadge(initialUserScore);
+		setNextBadge(next);
+	}, [initialUserScore]);
+	
+	// Fetch user badges from the API
+	useEffect(() => {
+		const fetchUserBadges = async () => {
+			// If no userId is provided, just use the default locked badges
+			if (!userId) {
+				return;
+			}
+			
+			setLoading(true);
+			setError(null);
+			
+			try {
+				const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+				const res = await fetch(`${backendUrl}/api/badges/user/${userId}`, {
+					headers: { "Content-Type": "application/json" },
+				});
+				
+				if (!res.ok) {
+					throw new Error(`Request failed: ${res.status}`);
+				}
+				
+				const json = await res.json();
+				
+				if (!json || !json.success) {
+					throw new Error(json?.message || "Failed to load user badges");
+				}
+				
+				// Update the badges data based on the API response
+				const userBadges = json.data.badges.map(badge => badge.badge);
+				setUser(json.data.user);
+				
+				// Assume we get the user's total points from the API or set to 0 if not available
+				// In a real scenario, you would fetch this from the user endpoint
+				const userPoints = user?.total_points || 0;
+				setUserScore(userPoints);
+				
+				// Calculate the next badge the user can earn
+				const next = getNextBadge(userPoints);
+				setNextBadge(next);
+				
+				// Update the badges data (unlock badges that the user has)
+				const updatedBadgesData = defaultBadgesData.map(badge => {
+					// Find if user has a corresponding badge
+					const matchingBackendBadge = Object.entries(badgeMapping).find(
+						([_, frontendBadge]) => frontendBadge.id === badge.id
+					);
+					
+					if (matchingBackendBadge) {
+						const [backendBadgeName] = matchingBackendBadge;
+						// Check if the user has this badge
+						const isUnlocked = userBadges.includes(backendBadgeName);
+						
+						// Also check if the user's score qualifies them for this badge
+						const badgeInfo = badgeMapping[backendBadgeName];
+						const scoreQualifies = userPoints >= badgeInfo.range[0];
+						
+						return {
+							...badge,
+							locked: !(isUnlocked || scoreQualifies),
+						};
+					}
+					
+					return badge;
+				});
+				
+				setBadgesData(updatedBadgesData);
+			} catch (err) {
+				console.error("Error fetching badges:", err);
+				setError(err.message || "Unknown error");
+			} finally {
+				setLoading(false);
+			}
+		};
+		
+		fetchUserBadges();
+	}, [userId]);
+	
 	useEffect(() => {
 		const observer = new IntersectionObserver(
 			(entries) => {
@@ -142,7 +265,7 @@ export default function BadgesPage() {
 		});
 
 		return () => observer.disconnect();
-	}, []);
+	}, [badgesData]);
 
 	return (
 		<div className="min-h-screen bg-[#191120] p-8 text-white">
@@ -155,19 +278,90 @@ export default function BadgesPage() {
 						Showcase your open source journey through earned badges. Each badge
 						represents a milestone in your contribution journey.
 					</p>
+					{user && (
+						<div className="mt-4 text-xl text-purple-300">
+							<span className="font-bold">{user.name}</span>'s achievement
+							<div className="mt-4 text-lg">
+								<div className="flex items-center justify-center">
+									<div>Current Score: <span className="text-purple-400 font-bold">{userScore || 0} points</span></div>
+								</div>
+								{nextBadge && userScore < nextBadge.range[0] && (
+									<div className="mt-2 p-4 bg-black/30 rounded-lg inline-block">
+										<div className="flex items-center gap-3">
+											<div className="text-center">
+												<div className="font-semibold">Next Badge: {nextBadge.title}</div>
+												<div className="text-sm text-purple-300">
+													{nextBadge.pointsNeeded} more points to earn
+												</div>
+											</div>
+										</div>
+									</div>
+								)}
+							</div>
+						</div>
+					)}
 				</div>
 
-				<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-12 mt-20">
-					{badgesData.slice(0, 8).map((badge, index) => (
-						<div
-							key={badge.id}
-							className="badge-item opacity-0"
-							style={{ animationDelay: `${index * 100}ms` }}
-						>
-							<Badge {...badge} />
-						</div>
-					))}
-				</div>
+				{loading && (
+					<div className="text-center text-gray-400 text-lg">
+						Loading badges...
+					</div>
+				)}
+				
+				{error && !loading && (
+					<div className="text-center text-rose-400 text-lg">
+						Error: {error}
+					</div>
+				)}
+				
+				{!loading && !error && (
+					<div className="mt-20">
+						{userScore >= 10 ? (
+							<div className="flex flex-col items-center justify-center">
+								<div className="text-3xl font-bold mb-6 text-purple-400">
+									Your Highest Badge
+								</div>
+								<div className="badge-item opacity-0 animate-fade-in">
+									{(() => {
+										const highestBadge = getHighestBadge(userScore);
+										if (highestBadge) {
+											return (
+												<div className="transform transition-all duration-500 hover:scale-105">
+													<div className="relative w-64 h-64 md:w-80 md:h-80">
+														<Image
+															src={highestBadge.image}
+															alt={highestBadge.title}
+															fill
+															className="object-contain transition-all duration-300 hover:scale-105"
+														/>
+													</div>
+													<div className="text-center mt-6">
+														<h2 className="text-4xl font-bold mb-2 bg-white bg-clip-text text-transparent">
+															{highestBadge.title}
+														</h2>
+														<p className="text-xl text-purple-400">
+															Score: {userScore} points
+														</p>
+													</div>
+												</div>
+											);
+										} else {
+											return (
+												<div className="text-center text-gray-400 text-xl">
+													You don't have enough points to earn a badge yet. Keep contributing!
+												</div>
+											);
+										}
+									})()}
+								</div>
+							</div>
+						) : (
+							<div className="text-center text-gray-400 text-xl">
+								You need at least 10 points to earn your first badge. Keep contributing!
+							</div>
+						)}
+					</div>
+				)}
 			</main>
 		</div>
 	);

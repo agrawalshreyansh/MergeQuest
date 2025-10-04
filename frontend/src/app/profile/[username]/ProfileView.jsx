@@ -116,8 +116,73 @@ const ContributionsGraph = ({ data }) => (
 );
 
 
+// Badges Section
+const BadgesSection = ({ userScore = 0 }) => {
+  // Mapping between backend badge names and frontend display names
+  const badgeMapping = {
+    'Newbie Committer': { id: 1, title: 'Newbie Committer', image: '/1.png', range: [10, 99] },
+    'Rising Contributor': { id: 2, title: 'Rising Contributor', image: '/2.png', range: [100, 249] },
+    'Issue Solver': { id: 3, title: 'Issue Solver', image: '/3.png', range: [250, 499] },
+    'Merge Artisian': { id: 4, title: 'Merge Artisian', image: '/4.png', range: [500, 749] },
+    'PR Ninja': { id: 5, title: 'PR Ninja', image: '/5.png', range: [750, 999] },
+    'Open Source Expert': { id: 6, title: 'Open Source Expert', image: '/6.png', range: [1000, 1249] },
+    'Open Source Guru': { id: 7, title: 'Open Source Guru', image: '/7.png', range: [1250, 1499] },
+    'Open Source Samurai': { id: 8, title: 'Open Source Samurai', image: '/8.png', range: [1500, 10000] },
+  };
+
+  // Function to determine the highest badge based on score
+  const getHighestBadge = (score) => {
+    let highestBadge = null;
+    
+    // If score is below minimum, return no badge
+    if (score < 10) return null;
+    
+    // Find the highest badge the user can earn based on their score
+    Object.entries(badgeMapping).forEach(([badgeName, badgeInfo]) => {
+      const [min, max] = badgeInfo.range;
+      if (score >= min && score <= max) {
+        highestBadge = {
+          name: badgeName,
+          ...badgeInfo
+        };
+      }
+    });
+    
+    return highestBadge;
+  };
+
+  // Get the highest badge
+  const highestBadge = getHighestBadge(userScore);
+
+  return (
+    <section className="bg-black/40 rounded-2xl p-6">
+      <h2 className="text-2xl font-semibold text-white mb-6">Highest Badge</h2>
+      <div className="flex justify-center">
+        {highestBadge ? (
+          <div className="flex flex-col items-center">
+            <div className="relative w-32 h-32">
+              <Image
+                src={highestBadge.image}
+                alt={highestBadge.title}
+                fill
+                className="object-contain"
+              />
+            </div>
+            <div className="text-center mt-4">
+              <p className="text-xl font-bold text-purple-300">{highestBadge.title}</p>
+              <p className="text-sm text-gray-400 mt-1">Score: {userScore} points</p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-gray-400">No badges earned yet. You need at least 10 points to earn your first badge!</p>
+        )}
+      </div>
+    </section>
+  );
+};
+
 // --- Main View Component ---
-export default function ProfileView({ user, progress, stats, graphData }) {
+export default function ProfileView({ user, progress, stats, graphData, userScore = 0 }) {
   return (
     <>
       <Navbar />
@@ -126,6 +191,7 @@ export default function ProfileView({ user, progress, stats, graphData }) {
           <ProfileHeader user={user} />
           <div className="space-y-8 mt-8">
             <ProgressSection progress={progress} />
+            <BadgesSection userScore={userScore} />
             <ContributionBreakdown stats={stats} />
             <ContributionsGraph data={graphData} />
           </div>

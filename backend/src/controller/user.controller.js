@@ -5,12 +5,24 @@ const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token';
 const GITHUB_USER_URL = 'https://api.github.com/user';
 
 export const createUser = async (req, res) => {
+  console.log('=== createUser function called ===');
+  console.log('Request body:', req.body);
+  
   try {
     const { code } = req.body;
     if (!code) {
+      console.log('No authorization code provided');
       return res.status(400).json({
         success: false,
         message: 'Authorization code is required'
+      });
+    }
+
+    // Check for required environment variables
+    if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
+      return res.status(500).json({
+        success: false,
+        message: 'GitHub OAuth configuration is missing'
       });
     }
 
@@ -28,6 +40,7 @@ export const createUser = async (req, res) => {
     });
 
     if (!tokenResponse.ok) {
+      console.error('GitHub token exchange failed:', tokenResponse.status, tokenResponse.statusText);
       return res.status(400).json({
         success: false,
         message: 'Failed to exchange authorization code for access token'
@@ -37,6 +50,7 @@ export const createUser = async (req, res) => {
     const tokenData = await tokenResponse.json();
     
     if (tokenData.error) {
+      console.error('GitHub OAuth error:', tokenData);
       return res.status(400).json({
         success: false,
         message: `GitHub OAuth error: ${tokenData.error_description || tokenData.error}`
@@ -44,6 +58,13 @@ export const createUser = async (req, res) => {
     }
 
     const access_token = tokenData.access_token;
+    
+    if (!access_token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to receive access token from GitHub'
+      });
+    }
 
     // Fetch user data from GitHub
     const githubUserResponse = await fetch(GITHUB_USER_URL, {
@@ -55,18 +76,19 @@ export const createUser = async (req, res) => {
     });
 
     if (!githubUserResponse.ok) {
+      console.error('GitHub user fetch failed:', githubUserResponse.status, githubUserResponse.statusText);
       return res.status(400).json({
         success: false,
         message: 'Failed to fetch user data from GitHub'
       });
     }
+    
     const userData = await githubUserResponse.json();
     
-    const { login : github_id, name, avatar_url } = userData;
-
-    console.log(userData)
+    const { login: github_id, name, avatar_url } = userData;
 
     if (!github_id) {
+      console.error('Missing github_id in user data:', userData);
       return res.status(400).json({
         success: false,
         message: 'Failed to get required user data from GitHub'
@@ -78,13 +100,31 @@ export const createUser = async (req, res) => {
     });
 
     if (existingUser) {
-      return res.status(200).json({
-        success: true,
-        message: 'User already exists with this GitHub ID or email',
-        data : existingUser
-      });
-    }
+      // Format existing user data properly
+      const existingUserResponse = {
+        id: existingUser._id ? existingUser._id.toString() : null,
+        github_id: existingUser.github_id || null,
+        name: existingUser.name || null,
+        avatar_url: existingUser.avatar_url || null,
+        total_points: existingUser.total_points || 0,
+        last_synced_at: existingUser.last_synced_at || null,
+        createdAt: existingUser.createdAt || null,
+        updatedAt: existingUser.updatedAt || null
+      };
 
+      console.log('Existing user found:', existingUserResponse);
+      
+      const finalResponse = {
+        success: true,
+        message: 'User already exists with this GitHub ID',
+        data: existingUserResponse
+      };
+      
+      console.log('Sending existing user response:', finalResponse);
+      res.set('Content-Type', 'application/json');
+      return res.status(200).json(finalResponse);
+    }
+    
     const newUser = new User({
       github_id,
       name,
@@ -95,39 +135,60 @@ export const createUser = async (req, res) => {
 
     const savedUser = await newUser.save();
 
-    const userResponse = {
-      id: savedUser._id,
-      github_id: savedUser.github_id,
-      name: savedUser.name,
-      avatar_url: savedUser.avatar_url,
-      total_points: savedUser.total_points,
-      last_synced_at: savedUser.last_synced_at,
-      createdAt: savedUser.createdAt,
-      updatedAt: savedUser.updatedAt
-    };
-
-    res.status(201).json({
-      success: true,
-      message: 'User created successfully',
-      data: userResponse
-    });
-
-  } catch (error) {
-    console.error('Error creating user:', error);
-    
-    // Handle duplicate key error
-    if (error.code === 11000) {
-      return res.status(409).json({
+    if (!savedUser) {
+      return res.status(500).json({
         success: false,
-        message: 'User already exists with this GitHub ID or email'
+        message: 'Failed to save user to database'
       });
     }
 
-    res.status(500).json({
+    const userResponse = {
+      id: savedUser._id ? savedUser._id.toString() : null,
+      github_id: savedUser.github_id || null,
+      name: savedUser.name || null,
+      avatar_url: savedUser.avatar_url || null,
+      total_points: savedUser.total_points || 0,
+      last_synced_at: savedUser.last_synced_at || null,
+      createdAt: savedUser.createdAt || null,
+      updatedAt: savedUser.updatedAt || null
+    };
+
+    console.log('New user created:', userResponse);
+
+    const finalResponse = {
+      success: true,
+      message: 'User created successfully',
+      data: userResponse
+    };
+    
+    console.log('Sending new user response:', finalResponse);
+    res.set('Content-Type', 'application/json');
+    return res.status(201).json(finalResponse);
+
+  } catch (error) {
+    console.error('=== Error in createUser function ===');
+    console.error('Error details:', error);
+    console.error('Error stack:', error.stack);
+    
+    if (error.code === 11000) {
+      const duplicateResponse = {
+        success: false,
+        message: 'User already exists with this GitHub ID'
+      };
+      console.log('Sending duplicate user response:', duplicateResponse);
+      res.set('Content-Type', 'application/json');
+      return res.status(409).json(duplicateResponse);
+    }
+
+    const errorResponse = {
       success: false,
       message: 'Internal server error',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    };
+    
+    console.log('Sending error response:', errorResponse);
+    res.set('Content-Type', 'application/json');
+    return res.status(500).json(errorResponse);
   }
 };
 

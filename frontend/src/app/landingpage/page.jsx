@@ -55,16 +55,32 @@ const LandingPage = () => {
       if (!code) return;
 
       try {
+        console.log("Sending auth request with code:", code);
         const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/auth`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ code })        
         });
 
-        const data = await res.json();
+        if (!res.ok) {
+          console.error("HTTP error:", res.status, res.statusText);
+          return;
+        }
+
+        const responseText = await res.text();
+
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error("Failed to parse JSON response:", parseError);
+          console.error("Response text was:", responseText);
+          return;
+        }
 
         if (data.success) {
-          window.location.href = '/projects';
+            localStorage.setItem("user", JSON.stringify(data.data));
+            window.location.href = '/projects';
         } else {
           console.error("Authentication failed:", data.message);
         }

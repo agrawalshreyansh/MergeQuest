@@ -1,6 +1,5 @@
-// /app/components/BadgesPage.js or wherever you prefer
-
-import React from 'react';
+"use client";
+import React, { useEffect } from 'react';
 import Image from 'next/image';
 
 // Data for all the badges.
@@ -80,85 +79,93 @@ const badgesData = [
 	},
 ];
 
-// Reusable Badge Card Component
-const BadgeCard = ({ title, tier, image, locked }) => {
-	// Function to get the correct text color based on the tier
-	const getTierColor = (tierName) => {
-		switch (tierName.toLowerCase()) {
-			case 'bronze tier':
-				return 'text-amber-400';
-			case 'silver tier':
-				return 'text-slate-300';
-			case 'gold tier':
-				return 'text-yellow-400';
-			case 'diamond tier':
-				return 'text-cyan-300';
-			case 'legendary tier':
-				return 'text-purple-400';
-			default:
-				return 'text-gray-400';
-		}
-	};
-
-	return (
-		<div className="flex flex-col items-center text-center">
-			{/* Updated container sizes for image */}
-			<div className="relative w-40 h-40 md:w-48 md:h-48 lg:w-72 lg:h-72 transition-transform duration-300 hover:scale-105">
-				<Image
-					src={image}
-					alt={title}
-					width={120}
-					height={120}
-					className="w-full h-full object-contain"
-				/>
-				{locked && (
-					<div className="absolute inset-0 flex items-center justify-center">
-						{/* Lock SVG Icon */}
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							className="h-12 w-12 text-gray-300"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
+// Badge Component
+const Badge = ({ title, tier, image, locked }) => (
+	<div className="transform transition-all duration-500 hover:scale-105 relative">
+		<div className="relative w-40 h-40 md:w-48 md:h-48 lg:w-72 lg:h-72">
+			<Image
+				src={image}
+				alt={title}
+				fill
+				className={`object-contain transition-all duration-300 ${
+					locked ? 'opacity-30' : 'hover:scale-105'
+				}`}
+			/>
+			{locked && (
+				<div className="absolute inset-0 flex items-center justify-center transform transition-all duration-300 hover:scale-110">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						className="h-16 w-16 text-gray-400"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+					>
+						<path
+							strokeLinecap="round"
+							strokeLinejoin="round"
 							strokeWidth={1.5}
-						>
-							<path
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-							/>
-						</svg>
-					</div>
-				)}
-			</div>
-			<h3 className="mt-4 font-semibold text-white text-xl">{title}</h3> {/* increased from text-lg to text-xl */}
-			<p className={`text-base ${ /* increased from text-sm */ '' }`}>
-        {tier}
-      </p>
+							d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+						/>
+					</svg>
+				</div>
+			)}
 		</div>
-	);
-};
+		<div className="text-center mt-4 transform transition-all duration-300">
+			<h3 className="text-2xl font-bold mb-2 bg-white bg-clip-text text-transparent">
+				{title}
+			</h3>
+			<p className={`text-lg ${locked ? 'text-gray-500' : 'text-purple-400'}`}>
+				{tier}
+			</p>
+		</div>
+	</div>
+);
 
 // Main Badges Page Component
 export default function BadgesPage() {
-	return (
-		<div className="min-h-screen p-8 text-white">
-			{/* Assuming your navbar is above this component */}
-			<main className="max-w-7xl mx-auto">
-				<h1 className="text-4xl font-bold">Badges</h1>
-				<p className="mt-2 text-gray-400">
-					Collect badges by contributing to open source projects.
-				</p>
+	useEffect(() => {
+		const observer = new IntersectionObserver(
+			(entries) => {
+				entries.forEach((entry, idx) => {
+					if (entry.isIntersecting) {
+						setTimeout(() => {
+							entry.target.classList.add('animate-fade-in');
+						}, idx * 100); // Stagger the animations
+					}
+				});
+			},
+			{ threshold: 0.1 }
+		);
 
-				<div className="mt-12 grid grid-cols-4 gap-x-6 gap-y-10">
-					{badgesData.slice(0, 8).map((badge) => (
-						<BadgeCard
+		document.querySelectorAll('.badge-item').forEach((badge) => {
+			observer.observe(badge);
+		});
+
+		return () => observer.disconnect();
+	}, []);
+
+	return (
+		<div className="min-h-screen bg-[#191120] p-8 text-white">
+			<main className="max-w-7xl mx-auto py-12">
+				<div className="text-center mb-16 animate-fade-in">
+					<h1 className="text-5xl md:text-6xl font-bold mb-6 bg-white bg-clip-text text-transparent">
+						Achievement Badges
+					</h1>
+					<p className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto">
+						Showcase your open source journey through earned badges. Each badge
+						represents a milestone in your contribution journey.
+					</p>
+				</div>
+
+				<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-12 mt-20">
+					{badgesData.slice(0, 8).map((badge, index) => (
+						<div
 							key={badge.id}
-							title={badge.title}
-							tier={badge.tier}
-							image={badge.image}
-							locked={badge.locked}
-						/>
+							className="badge-item opacity-0"
+							style={{ animationDelay: `${index * 100}ms` }}
+						>
+							<Badge {...badge} />
+						</div>
 					))}
 				</div>
 			</main>

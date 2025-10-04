@@ -4,3 +4,45 @@
 body{
   background-color: #191120;
 }
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-out forwards;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.6s ease-out forwards;
+}
+
+.transition-all {
+  transition: all 0.3s ease-in-out;
+}
+
+.badge-item {
+  opacity: 0;
+}
+
+.badge-item.animate-fade-in {
+  animation: fadeIn 0.8s ease-out forwards;
+}

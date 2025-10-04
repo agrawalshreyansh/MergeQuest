@@ -18,9 +18,6 @@ const HeroSection = () => {
           Unlock achievements, climb leaderboards, and showcase your impact on the
           open-source community.
         </p>
-        <button className="bg-purple-600 hover:bg-purple-700 text-white text-xl font-bold py-5 px-12 rounded-lg transition-all duration-300 transform hover:scale-105">
-          Get Started
-        </button>
       </div>
     </section>
   );

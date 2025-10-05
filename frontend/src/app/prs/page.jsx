@@ -9,18 +9,17 @@ export default function PrsPage() {
     const userData = localStorage.getItem("user");
     console.log("📦 User data from localStorage:", userData);
     
-    const user = JSON.parse(userData);
-    setUsername(user.name);
-    setLoading(false);
-  }, [router]);
-
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  }
-
-  if (!username) {
-    return null;
-  }
+    if (userData) {
+      const user = JSON.parse(userData);
+      console.log("👤 Parsed user object:", user);
+      
+      // Use github_id for the API call
+      const identifier = user.github_id || user.name;
+      console.log("🔑 Using identifier for API:", identifier);
+      
+      setUsername(identifier);
+    }
+  }, []);
 
   return <PullRequestsDashboard username={username} />;
 }
@@ -49,20 +48,36 @@ const PullRequestsDashboard = ({ username }) => {
     
     const fetchData = async () => {
       try {
-        const encodedUsername = encodeURIComponent(username);
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/github/user/prs/${encodedUsername}`,
-          {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-          }
-        );
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const url = `${API_URL}/api/pullrequests/${username}`;
+        
+        console.log("🚀 Fetching PRs from:", url);
+        
+        const res = await fetch(url, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
 
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        console.log("📡 Response status:", res.status, res.statusText);
 
-        const response = await res.json();
-        const prsArray = response.data || [];
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error("❌ Error response:", errorText);
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+
+        const data = await res.json();
+        console.log("✅ Received data:", data);
+        
+        // The API returns {success: true, data: [...]}
+        const prsArray = data.data || [];
+        console.log("📋 PRs array:", prsArray);
+        
+        // Log first PR to see structure
+        if (prsArray.length > 0) {
+          console.log("🔬 First PR structure:", prsArray[0]);
+        }
+        
         setPullRequests(prsArray);
 
         // calculate stats
@@ -72,7 +87,7 @@ const PullRequestsDashboard = ({ username }) => {
           const state = pr.state?.toLowerCase();
           if (state === "merged" || pr.merged === true) merged++;
           else if (state === "open") pending++;
-          else if (state === "closed" && !pr.merged) rejected++;
+          else if (state === "closed" && pr.merged !== true) rejected++;
         });
 
         console.log("📊 Stats - Merged:", merged, "Pending:", pending, "Rejected:", rejected);

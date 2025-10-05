@@ -1,5 +1,6 @@
 import User from '../models/user.model.js';
 import PullRequest from '../models/pullRequests.model.js';
+import Badge from '../models/badges.model.js';
 
 export const getUserPRs = async (req, res) => {
   const { username } = req.params;
@@ -104,6 +105,9 @@ export const getUserPRs = async (req, res) => {
 
     // Sync pull requests with database
     const syncResults = await syncPullRequestsWithDatabase(user._id, pullRequests);
+    
+    // Update user's badges based on current total points
+    await updateUserBadges(user._id);
     
     res.status(200).json({ 
       success: true, 
@@ -221,4 +225,78 @@ const syncPullRequestsWithDatabase = async (userId, fetchedPRs) => {
   }
 
   return { updated, created };
+};
+
+// Helper function to update user badges based on total points
+const updateUserBadges = async (userId) => {
+  try {
+    // Get user's current total points
+    const user = await User.findById(userId);
+    if (!user) {
+      console.error('User not found for badge update');
+      return;
+    }
+
+    const totalPoints = user.total_points || 0;
+    
+    // Define badge milestones in order (lowest to highest)
+    const badgeMilestones = [
+      { name: 'Newbie Committer', threshold: 10 },
+      { name: 'Rising Contributor', threshold: 100 },
+      { name: 'Issue Solver', threshold: 250 },
+      { name: 'Merge Artisian', threshold: 500 },
+      { name: 'PR Ninja', threshold: 750 },
+      { name: 'Open Source Expert', threshold: 1000 },
+      { name: 'Open Source Guru', threshold: 1250 },
+      { name: 'Open Source Samurai', threshold: 1500 }
+    ];
+
+    // Get current user badges
+    const existingBadges = await Badge.find({ user: userId });
+    const existingBadgeNames = existingBadges.map(badge => badge.badge);
+
+    // Determine which badges user should have based on total points
+    const earnedBadges = badgeMilestones
+      .filter(milestone => totalPoints >= milestone.threshold)
+      .map(milestone => milestone.name);
+
+    // Create badges that user has earned but doesn't have yet
+    const badgesToCreate = earnedBadges.filter(badgeName => 
+      !existingBadgeNames.includes(badgeName)
+    );
+
+    // Create new badges
+    for (const badgeName of badgesToCreate) {
+      try {
+        await Badge.create({
+          user: userId,
+          badge: badgeName
+        });
+        console.log(`Awarded badge '${badgeName}' to user ${userId} (${totalPoints} points)`);
+      } catch (error) {
+        // Handle duplicate badge error (in case of race conditions)
+        if (error.code === 11000) {
+          console.log(`Badge '${badgeName}' already exists for user ${userId}`);
+        } else {
+          console.error(`Error creating badge '${badgeName}':`, error);
+        }
+      }
+    }
+
+    // Optional: Remove badges if user's points dropped below threshold
+    // (Uncomment if you want badges to be revoked when points decrease)
+    /*
+    const badgesToRemove = existingBadgeNames.filter(badgeName => 
+      !earnedBadges.includes(badgeName)
+    );
+
+    for (const badgeName of badgesToRemove) {
+      await Badge.deleteOne({ user: userId, badge: badgeName });
+      console.log(`Removed badge '${badgeName}' from user ${userId} (${totalPoints} points)`);
+    }
+    */
+
+  } catch (error) {
+    console.error('Error updating user badges:', error);
+  }
 };

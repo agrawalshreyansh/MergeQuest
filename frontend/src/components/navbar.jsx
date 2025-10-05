@@ -31,6 +31,7 @@ export default function Navbar() {
   const navLinks = [
     { href: "/", text: "Home", showOnlyLoggedOut: true },
     { href: "/leaderboard", text: "Leaderboard" },
+    { href: "/prs", text: "PRs" },
     { href: "/badges", text: "Badges" },
     { href: "/about", text: "About" },
     { href: "/projects", text: "Projects" }
@@ -38,7 +39,7 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="fixed w-full bg-[#191120] text-white px-10 py-4 flex items-center justify-between font-sans transition-all duration-300 ease-in-out z-50">
+      <nav className="fixed w-full bg-[#191120] text-white px-10 py-4 flex items-center justify-between font-sans transition-all duration-300 ease-in-out z-[49]">
         {/* Logo */}
         <div className="text-2xl font-bold transition-transform duration-300 hover:scale-105">
           <Link href="/">

@@ -5,7 +5,8 @@ import {
   getAllUsers,
   updateUserPoints,
   deleteUser,
-  syncUser
+  syncUser,
+  getUserPoints
 } from '../controller/user.controller.js';
 
 const router = express.Router();
@@ -16,5 +17,7 @@ router.get('/user/:github_id', getUserByGithubId);
 router.patch('/:id/points', updateUserPoints);
 router.patch('/:id/sync', syncUser);
 router.delete('/:id', deleteUser);
+
+router.get('/getusergraph/:github_id', getUserPoints)
 
 export default router;

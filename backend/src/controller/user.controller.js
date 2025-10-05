@@ -1,5 +1,6 @@
 import User from '../models/user.model.js';
 import Badge from '../models/badges.model.js';
+import PullRequest from '../models/pullRequests.model.js';
 
 const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token';
 const GITHUB_USER_URL = 'https://api.github.com/user';
@@ -530,4 +531,59 @@ export const syncUser = async (req, res) => {
   }
 };
 
+
+export const getUserPoints = async (req, res) => {
+  try {
+    const { github_id } = req.params;
+
+    // Find user by github_id
+    const user = await User.findOne({ github_id });
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: `User with GitHub ID '${github_id}' not found`
+      });
+    }
+
+    // Fetch all pull requests for this user, sorted by creation date
+    const pullRequests = await PullRequest.find({ user: user._id })
+      .select('pull_points merge_points pull_created_at')
+      .sort({ pull_created_at: 1 }) // Ascending order for chronological graph
+      .lean();
+
+    // Calculate total points from all PRs
+    const calculatedTotalPoints = pullRequests.reduce((total, pr) => {
+      return total + (pr.pull_points + pr.merge_points);
+    }, 0);
+
+    // Update user's total_points only if there's a difference
+    if (user.total_points !== calculatedTotalPoints) {
+      await User.findByIdAndUpdate(user._id, {
+        total_points: calculatedTotalPoints,
+        last_synced_at: new Date()
+      });
+    }
+
+    // Transform PR data for X-Y graph (only total_points and date)
+    const pointsData = pullRequests.map(pr => ({
+      total_points: pr.pull_points + pr.merge_points,
+      pull_created_at: pr.pull_created_at
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: pointsData,
+      user_total_points: calculatedTotalPoints
+    });
+
+  } catch (error) {
+    console.error('Error fetching user points:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
 // Get user points statistics by GitHub ID

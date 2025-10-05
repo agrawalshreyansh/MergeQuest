@@ -1,4 +1,5 @@
 import User from '../models/user.model.js';
+import PullRequest from '../models/pullRequests.model.js';
 
 export const getUserPRs = async (req, res) => {
   const { username } = req.params;
@@ -101,9 +102,123 @@ export const getUserPRs = async (req, res) => {
     // Extract pull requests array directly from the nested structure
     const pullRequests = data.data.user.pullRequests.nodes;
 
-    res.status(200).json({ success: true, data: pullRequests });
+    // Sync pull requests with database
+    const syncResults = await syncPullRequestsWithDatabase(user._id, pullRequests);
+    
+    res.status(200).json({ 
+      success: true, 
+      data: pullRequests,
+      syncInfo: {
+        updated: syncResults.updated,
+        created: syncResults.created,
+        total: pullRequests.length
+      }
+    });
   } catch (err) {
     console.error("Error fetching user PRs:", err);
     res.status(500).json({ success: false, message: err.message });
   }
+};
+
+// Helper function to sync pull requests with database
+const syncPullRequestsWithDatabase = async (userId, fetchedPRs) => {
+  let updated = 0;
+  let created = 0;
+
+  for (const pr of fetchedPRs) {
+    try {
+      // Extract PR number from URL (e.g., https://github.com/owner/repo/pull/123)
+      const prNumber = parseInt(pr.url.split('/').pop());
+      
+      // Determine state and points based on GitHub's response
+      let state = pr.state.toLowerCase();
+      let pullPoints = 0;
+      let mergePoints = 0;
+      
+      if (pr.merged) {
+        state = 'merged';
+        pullPoints = 5;   // 5 points for merged PRs
+        mergePoints = 10; // 10 additional merge points
+      } else if (state === 'closed') {
+        pullPoints = -5;  // -5 points for closed (non-merged) PRs
+        mergePoints = 0;
+      } else if (state === 'open') {
+        pullPoints = 0;   // No points for open PRs yet
+        mergePoints = 0;
+      }
+
+      // Prepare PR data for database
+      const prData = {
+        user: userId,
+        repo_name: `${pr.repository.owner.login}/${pr.repository.name}`,
+        pr_number: prNumber,
+        pull_points: pullPoints,
+        merge_points: mergePoints,
+        pull_created_at: new Date(pr.createdAt),
+        merged_at: pr.merged ? new Date(pr.updatedAt) : null,
+        request_url: pr.url,
+        title: pr.title,
+        state: state,
+        additions: pr.additions || 0,
+        deletions: pr.deletions || 0
+      };
+
+      // Try to find existing PR
+      const existingPR = await PullRequest.findOne({
+        repo_name: prData.repo_name,
+        pr_number: prData.pr_number
+      });
+
+      if (existingPR) {
+        // Check if there are any changes
+        const hasChanges = 
+          existingPR.state !== prData.state ||
+          existingPR.title !== prData.title ||
+          existingPR.additions !== prData.additions ||
+          existingPR.deletions !== prData.deletions ||
+          existingPR.pull_points !== prData.pull_points ||
+          existingPR.merge_points !== prData.merge_points ||
+          (prData.merged_at && !existingPR.merged_at) ||
+          (prData.merged_at && existingPR.merged_at && 
+           new Date(existingPR.merged_at).getTime() !== new Date(prData.merged_at).getTime()) ||
+          new Date(existingPR.pull_created_at).getTime() !== new Date(prData.pull_created_at).getTime();
+
+        if (hasChanges) {
+          // Calculate points difference for user total update
+          const pointsDiff = (prData.pull_points + prData.merge_points) - 
+                           (existingPR.pull_points + existingPR.merge_points);
+          
+          await PullRequest.findByIdAndUpdate(existingPR._id, prData);
+          
+          // Update user's total points if there's a difference
+          if (pointsDiff !== 0) {
+            await User.findByIdAndUpdate(userId, {
+              $inc: { total_points: pointsDiff }
+            });
+          }
+          
+          updated++;
+          console.log(`Updated PR: ${prData.repo_name}#${prData.pr_number} (Points: ${prData.pull_points + prData.merge_points})`);
+        }
+      } else {
+        // Create new PR
+        await PullRequest.create(prData);
+        
+        // Add points to user's total
+        const totalNewPoints = prData.pull_points + prData.merge_points;
+        if (totalNewPoints !== 0) {
+          await User.findByIdAndUpdate(userId, {
+            $inc: { total_points: totalNewPoints }
+          });
+        }
+        
+        created++;
+        console.log(`Created new PR: ${prData.repo_name}#${prData.pr_number} (Points: ${totalNewPoints})`);
+      }
+    } catch (error) {
+      console.error(`Error syncing PR ${pr.url}:`, error);
+    }
+  }
+
+  return { updated, created };
 };

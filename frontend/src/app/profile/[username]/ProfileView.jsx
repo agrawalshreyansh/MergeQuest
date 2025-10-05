@@ -116,10 +116,7 @@ const ContributionsGraph = ({ data }) => (
     </section>
 );
 
-
-// Badges Section
 const BadgesSection = ({ userScore = 0 }) => {
-  // Mapping between backend badge names and frontend display names
   const badgeMapping = {
     'Newbie Committer': { id: 1, title: 'Newbie Committer', image: '/1.png', range: [10, 99] },
     'Rising Contributor': { id: 2, title: 'Rising Contributor', image: '/2.png', range: [100, 249] },
@@ -131,28 +128,18 @@ const BadgesSection = ({ userScore = 0 }) => {
     'Open Source Samurai': { id: 8, title: 'Open Source Samurai', image: '/8.png', range: [1500, 10000] },
   };
 
-  // Function to determine the highest badge based on score
   const getHighestBadge = (score) => {
     let highestBadge = null;
-    
-    // If score is below minimum, return no badge
     if (score < 10) return null;
-    
-    // Find the highest badge the user can earn based on their score
     Object.entries(badgeMapping).forEach(([badgeName, badgeInfo]) => {
       const [min, max] = badgeInfo.range;
       if (score >= min && score <= max) {
-        highestBadge = {
-          name: badgeName,
-          ...badgeInfo
-        };
+        highestBadge = { name: badgeName, ...badgeInfo };
       }
     });
-    
     return highestBadge;
   };
 
-  // Get the highest badge
   const highestBadge = getHighestBadge(userScore);
 
   return (
@@ -182,6 +169,8 @@ const BadgesSection = ({ userScore = 0 }) => {
   );
 };
 
+// --- Main Page Component ---
+
 export default function ProfileView() {
   const [userData, setUserData] = useState(null);
 
@@ -190,7 +179,8 @@ export default function ProfileView() {
     if (user) {
       setUserData({
         ...user,
-        avatarUrl: getProfileImage(user.name)
+        // Use the 'avatar_url' key from the user object in localStorage.
+        avatarUrl: user.avatar_url || getProfileImage(user.name)
       });
     }
   }, []);

@@ -27,7 +27,7 @@ export default function LeaderboardPage() {
 			setLoading(true);
 			setError(null);
 			try {
-                const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+                const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
                 const res = await fetch(`${backendUrl}/api/users/leaderboard`, {
                     signal: controller.signal,
                     headers: { "Content-Type": "application/json" },

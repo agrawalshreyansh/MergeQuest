@@ -210,7 +210,7 @@ export default function BadgesPage({ userId: propUserId, userScore: initialUserS
 			setError(null);
 			
 			try {
-				const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+				const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 				const res = await fetch(`${backendUrl}/api/badges/user/${userId}`, {
 					headers: { "Content-Type": "application/json" },
 				});
@@ -227,11 +227,11 @@ export default function BadgesPage({ userId: propUserId, userScore: initialUserS
 				
 				// Update the badges data based on the API response
 				const userBadges = json.data.badges.map(badge => badge.badge);
-				setUser(json.data.user);
+				const fetchedUser = json.data.user;
+				setUser(fetchedUser);
 				
-				// Assume we get the user's total points from the API or set to 0 if not available
-				// In a real scenario, you would fetch this from the user endpoint
-				const userPoints = user?.total_points || 0;
+				// Get the user's total points from the API
+				const userPoints = fetchedUser?.total_points || 0;
 				setUserScore(userPoints);
 				
 				// Calculate the next badge the user can earn

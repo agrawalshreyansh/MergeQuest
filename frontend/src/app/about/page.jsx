@@ -141,7 +141,6 @@ const AboutPage = () => {
 
   return (
     <main className="bg-[#191120] text-white overflow-hidden">
-      <Navbar />
       <HeroSection />
       <MissionSection />
       <FeaturesSection />

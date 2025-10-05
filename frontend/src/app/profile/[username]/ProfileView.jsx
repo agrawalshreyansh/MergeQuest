@@ -1,9 +1,9 @@
-'use client'; // The 'use client' directive goes here
+'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiShare2 } from 'react-icons/fi';
-import Navbar from '@/components/Navbar';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { getUserData, getProfileImage } from '@/utils/user';
 
 // --- Reusable Child Components ---
 
@@ -15,7 +15,7 @@ const ProfileHeader = ({ user }) => (
         alt={user.name}
         className="w-28 h-28 rounded-full border-4 border-[#7C3AED] object-cover"
       />
-      <button className="absolute bottom-0 right-0 bg-[#7C3AED] p-2 rounded-full hover:bg-[#6D28D9] transition-colors">
+      <button className="absolute bottom-0 right-0 bg-[#191120] p-2 rounded-full hover:bg-[#6D28D9] transition-colors">
         <FiShare2 size={16} />
       </button>
     </div>
@@ -181,22 +181,46 @@ const BadgesSection = ({ userScore = 0 }) => {
   );
 };
 
-// --- Main View Component ---
-export default function ProfileView({ user, progress, stats, graphData, userScore = 0 }) {
+export default function ProfileView() {
+  const [userData, setUserData] = useState(null);
+
+  useEffect(() => {
+    const user = getUserData();
+    if (user) {
+      setUserData({
+        ...user,
+        avatarUrl: getProfileImage(user.name)
+      });
+    }
+  }, []);
+
+  const progressData = { title: 'PR Machine', percentage: 76, description: 'You are 5 PRs away from unlocking the PR Machine badge!' };
+  const statsData = [ { id: 1, title: 'Pull Requests', value: '25' }, { id: 2, title: 'Stars Received', value: '150' }, { id: 3, title: 'Forks Created', value: '50' }, { id: 4, title: 'Longest Streak', value: '30' } ];
+  const graphData = [ { x: 1, y: 10 }, { x: 2, y: 25 }, { x: 3, y: 15 }, { x: 4, y: 30 }, { x: 5, y: 20 }, { x: 6, y: 35 }, { x: 7, y: 28 }, { x: 8, y: 40 }, { x: 9, y: 32 }, { x: 10, y: 45 }];
+  const processedGraphData = graphData.map((dataPoint, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (graphData.length - index - 1));
+    return { date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), contributions: dataPoint.y };
+  });
+
+  if (!userData) {
+    return (
+        <div className="min-h-screen bg-[#191120] flex items-center justify-center text-white">
+            Loading Profile...
+        </div>
+    );
+  }
+
   return (
-    <>
-      <Navbar />
-      <div className="min-h-screen font-sans p-4 sm:p-8 bg-[#191120] pt-20">
-        <main className="max-w-7xl mx-auto">
-          <ProfileHeader user={user} />
-          <div className="space-y-8 mt-8">
-            <ProgressSection progress={progress} />
-            <BadgesSection userScore={userScore} />
-            <ContributionBreakdown stats={stats} />
-            <ContributionsGraph data={graphData} />
-          </div>
-        </main>
-      </div>
-    </>
+    <div className="min-h-screen p-4 sm:p-8">
+      <main className="max-w-7xl mx-auto">
+        <ProfileHeader user={userData} />
+        <div className="space-y-8 mt-8">
+          <ProgressSection progress={progressData} />
+          <ContributionBreakdown stats={statsData} />
+          <ContributionsGraph data={processedGraphData} />
+        </div>
+      </main>
+    </div>
   );
 }

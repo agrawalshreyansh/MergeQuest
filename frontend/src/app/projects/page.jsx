@@ -96,7 +96,6 @@ export default function ExplorePage() {
   return (
     <PageTransition>
       <div className="min-h-screen bg-[#191120]">
-        <Navbar />
 
         <div className="flex max-w-[1400px] mx-auto px-8 py-10 gap-10">
           {/* Sidebar */}

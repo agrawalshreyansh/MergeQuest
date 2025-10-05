@@ -16,7 +16,8 @@ export default function PrsPage() {
     }
     
     const user = JSON.parse(userData);
-    setUsername(user.name);
+    // Use github_id if available, fallback to name
+    setUsername(user.github_id || user.name);
     setLoading(false);
   }, [router]);
 
@@ -51,9 +52,10 @@ const PullRequestsDashboard = ({ username }) => {
     if (!username) return;
     const fetchData = async () => {
       try {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
         const encodedUsername = encodeURIComponent(username);
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/github/user/prs/${encodedUsername}`,
+          `${API_URL}/github/user/prs/${encodedUsername}`,
           {
             method: "GET",
             headers: { "Content-Type": "application/json" },
@@ -61,7 +63,10 @@ const PullRequestsDashboard = ({ username }) => {
           }
         );
 
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`HTTP error! status: ${res.status} ${text}`);
+        }
 
         const response = await res.json();
         const prsArray = response.data || [];

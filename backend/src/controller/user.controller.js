@@ -3,10 +3,80 @@ import Badge from '../models/badges.model.js';
 
 const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token';
 const GITHUB_USER_URL = 'https://api.github.com/user';
+const GITHUB_GRAPHQL_API = 'https://api.github.com/graphql';
+
+// Function to calculate contribution streaks
+const calculateStreaks = (contributionCalendar) => {
+  if (!contributionCalendar || !contributionCalendar.weeks) {
+    return { currentStreak: 0, longestStreak: 0 };
+  }
+
+  // Flatten all contribution days and sort by date
+  const allDays = [];
+  contributionCalendar.weeks.forEach(week => {
+    week.contributionDays.forEach(day => {
+      allDays.push({
+        date: new Date(day.date),
+        count: day.contributionCount
+      });
+    });
+  });
+
+  // Sort by date (newest first for current streak calculation)
+  allDays.sort((a, b) => b.date - a.date);
+
+  let currentStreak = 0;
+  let longestStreak = 0;
+  let tempStreak = 0;
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  // Calculate current streak (from today backwards)
+  for (let i = 0; i < allDays.length; i++) {
+    const day = allDays[i];
+    const dayDate = new Date(day.date);
+    
+    if (i === 0) {
+      // Check if today or yesterday has contributions
+      if (day.count > 0 && (
+        dayDate.toDateString() === today.toDateString() || 
+        dayDate.toDateString() === yesterday.toDateString()
+      )) {
+        currentStreak = 1;
+      } else if (day.count === 0) {
+        break;
+      }
+    } else {
+      const prevDay = allDays[i - 1];
+      const prevDate = new Date(prevDay.date);
+      const expectedDate = new Date(prevDate);
+      expectedDate.setDate(expectedDate.getDate() - 1);
+      
+      if (day.count > 0 && dayDate.toDateString() === expectedDate.toDateString()) {
+        currentStreak++;
+      } else {
+        break;
+      }
+    }
+  }
+
+  // Calculate longest streak
+  allDays.sort((a, b) => a.date - b.date); // Sort chronologically for longest streak
+  
+  for (let i = 0; i < allDays.length; i++) {
+    if (allDays[i].count > 0) {
+      tempStreak++;
+      longestStreak = Math.max(longestStreak, tempStreak);
+    } else {
+      tempStreak = 0;
+    }
+  }
+
+  return { currentStreak, longestStreak };
+};
 
 export const createUser = async (req, res) => {
-  console.log('=== createUser function called ===');
-  console.log('Request body:', req.body);
   
   try {
     const { code } = req.body;
@@ -18,7 +88,6 @@ export const createUser = async (req, res) => {
       });
     }
 
-    // Check for required environment variables
     if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
       return res.status(500).json({
         success: false,
@@ -196,7 +265,8 @@ export const getUserByGithubId = async (req, res) => {
   try {
     const { github_id } = req.params;
 
-    const user = await User.findOne({ github_id }).select('-access_token');
+    // Find user and include access_token for GitHub API calls
+    const user = await User.findOne({ github_id });
 
     if (!user) {
       return res.status(404).json({
@@ -205,10 +275,95 @@ export const getUserByGithubId = async (req, res) => {
       });
     }
 
-    res.status(200).json({
-      success: true,
-      data: user
-    });
+    // GraphQL query to get repository contribution data
+    const query = `
+    {
+      user(login: "${github_id}") {
+        repositoriesContributedTo(contributionTypes: [PULL_REQUEST], first: 1) {
+          totalCount
+        }
+        repositories(first: 1, isFork: true) {
+          totalCount
+        }
+        pullRequests(first: 1) {
+          totalCount
+        }
+        contributionsCollection {
+          contributionCalendar {
+            totalContributions
+            weeks {
+              contributionDays {
+                contributionCount
+                date
+              }
+            }
+          }
+        }
+      }
+    }
+    `;
+
+    try {
+      // Call GitHub GraphQL API
+      const githubResponse = await fetch(GITHUB_GRAPHQL_API, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${user.access_token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ query })
+      });
+
+      const githubData = await githubResponse.json();
+      
+      const userResponse = {
+        _id: user._id,
+        last_synced_at: user.last_synced_at,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
+      };
+
+      if (githubData.data && githubData.data.user) {
+        // Calculate streaks from contribution data
+        const streaks = calculateStreaks(githubData.data.user.contributionsCollection?.contributionCalendar);
+        
+        userResponse.github_stats = {
+          repositories_contributed_to: githubData.data.user.repositoriesContributedTo.totalCount,
+          forked_repositories: githubData.data.user.repositories.totalCount,
+          total_pull_requests: githubData.data.user.pullRequests.totalCount,
+          total_contributions: githubData.data.user.contributionsCollection?.contributionCalendar?.totalContributions || 0,
+          current_streak: streaks.currentStreak,
+          longest_streak: streaks.longestStreak
+        };
+      }
+
+      res.status(200).json({
+        success: true,
+        data: userResponse
+      });
+
+    } catch (githubError) {
+      console.error('Error fetching GitHub data:', githubError);
+      
+      // Return user data without GitHub stats if API call fails
+      const userResponse = {
+        _id: user._id,
+        github_id: user.github_id,
+        email: user.email,
+        name: user.name,
+        avatar_url: user.avatar_url,
+        total_points: user.total_points,
+        last_synced_at: user.last_synced_at,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
+      };
+
+      res.status(200).json({
+        success: true,
+        data: userResponse,
+        warning: 'GitHub statistics could not be fetched'
+      });
+    }
 
   } catch (error) {
     console.error('Error fetching user:', error);

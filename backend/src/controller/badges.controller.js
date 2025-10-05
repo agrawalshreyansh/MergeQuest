@@ -107,16 +107,10 @@ export const getUserBadges = async (req, res) => {
     res.status(200).json({
       success: true,
       data: {
-        user: {
-          id: user._id,
-          github_id: user.github_id,
-          name: user.name,
-          avatar_url: user.avatar_url
-        },
         badges: badges.map(badge => ({
           id: badge._id,
           badge: badge.badge,
-          awardedAt: badge.createdAt
+          createdAt: badge.createdAt
         })),
         totalBadges: badges.length
       }

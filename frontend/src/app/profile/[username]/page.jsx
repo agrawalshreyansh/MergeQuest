@@ -5,7 +5,8 @@ import ProfileView from './ProfileView';
 
 // Client Component to handle params and data fetching
 export default function UserProfilePage({ params }) {
-  const { username } = params;
+  const resolvedParams = React.use(params);
+  const { username } = resolvedParams;
   const [userData, setUserData] = useState({
     name: username.replace('-', ' '),
     title: 'Software Engineer | Open Source Enthusiast',

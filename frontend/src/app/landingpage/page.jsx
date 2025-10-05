@@ -1,30 +1,39 @@
 'use client';
 import React from 'react';
+import Image from 'next/image';
 
-const Badge = ({ bgColor, title, glowColor }) => (
+const Badge = ({ src, title }) => (
   <div className="flex flex-col items-center text-center">
     <div
-      className={`
+      className="
         w-40 h-40 md:w-48 md:h-48
-        ${bgColor}
+        bg-black/20
         rounded-2xl
         shadow-lg
         hover:shadow-2xl hover:-translate-y-1 transition-all duration-300
-        ${glowColor}
-      `}
+        hover:shadow-purple-500/40
+        flex items-center justify-center
+        border border-purple-500/20
+      "
     >
+      <Image
+        src={src}
+        alt={title}
+        width={240}
+        height={240}
+        className="object-contain"
+      />
     </div>
-    <p className="mt-4 font-semibold text-gray-200">{title}</p>
   </div>
 );
 
 const LandingPage = () => {
   const badges = [
-    { title: 'Bronze Contributor', bgColor: 'bg-teal-900', glowColor: 'hover:shadow-teal-500/40' },
-    { title: 'Silver Committer', bgColor: 'bg-lime-900', glowColor: 'hover:shadow-lime-500/40' },
-    { title: 'Golden Pull Request', bgColor: 'bg-slate-800', glowColor: 'hover:shadow-blue-500/40' },
-    { title: 'Diamond Issue Solver', bgColor: 'bg-slate-700', glowColor: 'hover:shadow-gray-400/40' },
-    { title: 'Legendary Code Ninja', bgColor: 'bg-indigo-900', glowColor: 'hover:shadow-indigo-500/40' },
+    { title: 'Bronze Contributor', src: '/1.png' },
+    { title: 'Silver Committer', src: '/2.png' },
+    { title: 'Golden Pull Request', src: '/3.png' },
+    { title: 'Diamond Issue Solver', src: '/4.png' },
+    { title: 'Legendary Code Ninja', src: '/5.png' },
   ];
 
   const openPopup = () => {

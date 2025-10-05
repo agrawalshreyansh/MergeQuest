@@ -232,12 +232,16 @@ const updateUserBadges = async (userId) => {
   try {
     // Get user's current total points
     const user = await User.findById(userId);
+
+
     if (!user) {
       console.error('User not found for badge update');
       return;
     }
 
     const totalPoints = user.total_points || 0;
+
+    console.log(totalPoints)
     
     // Define badge milestones in order (lowest to highest)
     const badgeMilestones = [

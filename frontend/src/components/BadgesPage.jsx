@@ -152,15 +152,42 @@ const getNextBadge = (score) => {
 };
 
 // Main Badges Page Component
-export default function BadgesPage({ userId, userScore: initialUserScore = 0 }) {
+export default function BadgesPage({ userId: propUserId, userScore: initialUserScore = 0 }) {
 	const [badgesData, setBadgesData] = useState(defaultBadgesData);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState(null);
 	const [user, setUser] = useState(null);
 	const [userScore, setUserScore] = useState(initialUserScore);
 	const [nextBadge, setNextBadge] = useState(null);
-	
-	// Update userScore when prop changes
+	const [userId, setUserId] = useState(propUserId);
+
+	// Get user data from localStorage on component mount if no userId prop provided
+	useEffect(() => {
+		if (!userId) {
+			try {
+				// Try format from the storage object you provided
+				const userDataString = localStorage.getItem('user');
+				if (userDataString) {
+					const userData = JSON.parse(userDataString);
+					if (userData && userData.id) {
+						setUserId(userData.id);
+						return;
+					}
+				}
+
+				// Try alternate format
+				const altUserDataString = localStorage.getItem('userData');
+				if (altUserDataString) {
+					const userData = JSON.parse(altUserDataString);
+					if (userData && userData._id) {
+						setUserId(userData._id);
+					}
+				}
+			} catch (error) {
+				console.error("Error parsing user data from localStorage:", error);
+			}
+		}
+	}, [userId]);	// Update userScore when prop changes
 	useEffect(() => {
 		setUserScore(initialUserScore);
 		
@@ -172,8 +199,10 @@ export default function BadgesPage({ userId, userScore: initialUserScore = 0 }) 
 	// Fetch user badges from the API
 	useEffect(() => {
 		const fetchUserBadges = async () => {
-			// If no userId is provided, just use the default locked badges
+			// If no userId is provided, use the default badges with locked state
 			if (!userId) {
+				// Keep all badges locked if no user is logged in
+				setBadgesData(defaultBadgesData);
 				return;
 			}
 			
@@ -316,50 +345,20 @@ export default function BadgesPage({ userId, userScore: initialUserScore = 0 }) 
 				
 				{!loading && !error && (
 					<div className="mt-20">
-						{userScore >= 10 ? (
-							<div className="flex flex-col items-center justify-center">
-								<div className="text-3xl font-bold mb-6 text-purple-400">
-									Your Highest Badge
+						<div className="text-3xl font-bold mb-12 text-center text-purple-400">
+							All Achievement Badges
+						</div>
+						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 md:gap-12">
+							{badgesData.map((badge, index) => (
+								<div key={badge.id} className="badge-item opacity-0 flex justify-center">
+									<Badge
+										title={badge.title}
+										image={badge.image}
+										locked={badge.locked}
+									/>
 								</div>
-								<div className="badge-item opacity-0 animate-fade-in">
-									{(() => {
-										const highestBadge = getHighestBadge(userScore);
-										if (highestBadge) {
-											return (
-												<div className="transform transition-all duration-500 hover:scale-105">
-													<div className="relative w-64 h-64 md:w-80 md:h-80">
-														<Image
-															src={highestBadge.image}
-															alt={highestBadge.title}
-															fill
-															className="object-contain transition-all duration-300 hover:scale-105"
-														/>
-													</div>
-													<div className="text-center mt-6">
-														<h2 className="text-4xl font-bold mb-2 bg-white bg-clip-text text-transparent">
-															{highestBadge.title}
-														</h2>
-														<p className="text-xl text-purple-400">
-															Score: {userScore} points
-														</p>
-													</div>
-												</div>
-											);
-										} else {
-											return (
-												<div className="text-center text-gray-400 text-xl">
-													You don't have enough points to earn a badge yet. Keep contributing!
-												</div>
-											);
-										}
-									})()}
-								</div>
-							</div>
-						) : (
-							<div className="text-center text-gray-400 text-xl">
-								You need at least 10 points to earn your first badge. Keep contributing!
-							</div>
-						)}
+							))}
+						</div>
 					</div>
 				)}
 			</main>

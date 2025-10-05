@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { FiShare2 } from 'react-icons/fi';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getUserData, getProfileImage } from '@/utils/user';
@@ -218,6 +219,7 @@ export default function ProfileView() {
         <div className="space-y-8 mt-8">
           <ProgressSection progress={progressData} />
           <ContributionBreakdown stats={statsData} />
+          <BadgesSection userScore={userData.total_points || 0} />
           <ContributionsGraph data={processedGraphData} />
         </div>
       </main>

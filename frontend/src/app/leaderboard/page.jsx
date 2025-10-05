@@ -179,6 +179,7 @@ export default function LeaderboardPage() {
 												// Get the highest badge based on score
 												const highestBadge = getHighestBadge(u.total_points || 0);
 												
+												// Show badge only if user has enough points
 												if (highestBadge) {
 													return (
 														<div className="flex items-center gap-2">
@@ -194,10 +195,12 @@ export default function LeaderboardPage() {
 															<span className="text-xs text-purple-300">{highestBadge.title}</span>
 														</div>
 													);
-												}
+												} 
 												
-												// If no score-based badge
-												return <div className="text-gray-500 text-sm">—</div>;
+												// If user doesn't have enough points
+												return (
+													<div className="text-gray-500 text-sm">No badge yet</div>
+												);
 											})()}
 										</div>
 									</td>

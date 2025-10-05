@@ -12,13 +12,29 @@ export default function BadgesPageRoute() {
     // Get user from localStorage if available
     const getUserFromLocalStorage = () => {
       try {
-        const userDataString = localStorage.getItem('userData');
+        // Try the format from the provided storage object
+        const userDataString = localStorage.getItem('user');
         if (userDataString) {
           const userData = JSON.parse(userDataString);
+          if (userData && userData.id) {
+            setUserId(userData.id);
+            
+            // If total_points is available, use it
+            if (userData.total_points) {
+              setUserScore(userData.total_points);
+            }
+            return;
+          }
+        }
+        
+        // Try alternate format if first one fails
+        const altUserDataString = localStorage.getItem('userData');
+        if (altUserDataString) {
+          const userData = JSON.parse(altUserDataString);
           if (userData && userData._id) {
             setUserId(userData._id);
             
-            // If total_points is available in localStorage, use it
+            // If total_points is available, use it
             if (userData.total_points) {
               setUserScore(userData.total_points);
             }

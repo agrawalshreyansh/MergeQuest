@@ -15,19 +15,17 @@ export default function PrsPage() {
       return;
     }
     
-    const user = JSON.parse(userData);
-    setUsername(user.name);
-    setLoading(false);
-  }, [router]);
-
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  }
-
-  if (!username) {
-    return null;
-  }
-
+    if (userData) {
+      const user = JSON.parse(userData);
+      console.log("👤 Parsed user object:", user);
+      
+      // Use github_id for the API call
+      const identifier = user.github_id || user.name;
+      console.log("🔑 Using identifier for API:", identifier);
+      
+      setUsername(identifier);
+    }
+  }, []);
   return <PullRequestsDashboard username={username} />;
 }
 
@@ -51,20 +49,36 @@ const PullRequestsDashboard = ({ username }) => {
     if (!username) return;
     const fetchData = async () => {
       try {
-        const encodedUsername = encodeURIComponent(username);
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/github/user/prs/${encodedUsername}`,
-          {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-          }
-        );
+        const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+        const url = `${API_URL}/api/pullrequests/${username}`;
+        
+        console.log("🚀 Fetching PRs from:", url);
+        
+        const res = await fetch(url, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
 
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        console.log("📡 Response status:", res.status, res.statusText);
 
-        const response = await res.json();
-        const prsArray = response.data || [];
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error("❌ Error response:", errorText);
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+
+        const data = await res.json();
+        console.log("✅ Received data:", data);
+        
+        // The API returns {success: true, data: [...]}
+        const prsArray = data.data || [];
+        console.log("📋 PRs array:", prsArray);
+        
+        // Log first PR to see structure
+        if (prsArray.length > 0) {
+          console.log("🔬 First PR structure:", prsArray[0]);
+        }
+        
         setPullRequests(prsArray);
 
         // calculate stats
@@ -73,9 +87,9 @@ const PullRequestsDashboard = ({ username }) => {
           rejected = 0;
 
         prsArray.forEach((pr) => {
-          if (pr.status === "merged") merged++;
-          else if (pr.status === "open") pending++;
-          else if (pr.status === "closed") rejected++;
+          if (pr.state === "merged") merged++;
+          else if (pr.state === "open") pending++;
+          else if (pr.state === "closed") rejected++;
         });
 
         setMergedCount(merged);
@@ -100,7 +114,7 @@ const PullRequestsDashboard = ({ username }) => {
 
     // status filter
     if (statusFilter !== "all") {
-      prs = prs.filter((pr) => pr.status === statusFilter);
+      prs = prs.filter((pr) => pr.state === statusFilter);
     }
 
     // repo filter
@@ -254,16 +268,16 @@ const PullRequestsDashboard = ({ username }) => {
               <div className="flex justify-between items-center">
                 <span
                   className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    pr.status === "merged"
+                    pr.state === "merged"
                       ? "bg-green-500/20 text-green-400"
-                      : pr.status === "open"
+                      : pr.state === "open"
                       ? "bg-yellow-500/20 text-yellow-400"
                       : "bg-red-500/20 text-red-400"
                   }`}
                 >
-                  {pr.status === "merged"
+                  {pr.state === "merged"
                     ? "Merged"
-                    : pr.status === "open"
+                    : pr.state === "open"
                     ? "Pending"
                     : "Rejected"}
                 </span>

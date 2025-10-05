@@ -6,8 +6,6 @@ import { FiShare2 } from 'react-icons/fi';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getUserData, getProfileImage } from '@/utils/user';
 
-// --- Reusable Child Components ---
-
 const ProfileHeader = ({ user }) => (
   <header className="flex flex-col items-center text-center relative">
     <div className="relative">
@@ -173,6 +171,11 @@ const BadgesSection = ({ userScore = 0 }) => {
 
 export default function ProfileView() {
   const [userData, setUserData] = useState(null);
+  const [pointsData, setPointsData] = useState([]);
+  const [statsData, setStatsData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const user = getUserData();
@@ -182,17 +185,126 @@ export default function ProfileView() {
         // Use the 'avatar_url' key from the user object in localStorage.
         avatarUrl: user.avatar_url || getProfileImage(user.name)
       });
+      
+      // Fetch points data from API
+      fetchUserPoints(user.github_id);
+      // Fetch user stats from API
+      fetchUserStats(user.github_id);
     }
   }, []);
 
+  const fetchUserPoints = async (githubId) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/getusergraph/${githubId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch points: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // Transform API data for the graph with cumulative points
+        const sortedData = result.data.sort((a, b) => new Date(a.pull_created_at) - new Date(b.pull_created_at));
+        
+        let cumulativePoints = 0;
+        const transformedData = [];
+        
+        // Process each PR and calculate cumulative points
+        sortedData.forEach((point) => {
+          cumulativePoints += point.total_points;
+          const date = new Date(point.pull_created_at);
+          transformedData.push({
+            date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            contributions: cumulativePoints,
+            fullDate: date.toISOString().split('T')[0],
+            actualDate: date
+          });
+        });
+        
+        // Extend graph to current date if the last PR is not today
+        const today = new Date();
+        const lastPRDate = transformedData.length > 0 ? transformedData[transformedData.length - 1].actualDate : new Date(0);
+        
+        if (transformedData.length > 0 && lastPRDate < today) {
+          // Add current date with same cumulative points
+          transformedData.push({
+            date: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            contributions: cumulativePoints,
+            fullDate: today.toISOString().split('T')[0],
+            actualDate: today
+          });
+        }
+        
+        setPointsData(transformedData);
+        
+        // Update user total points if available
+        if (result.user_total_points !== undefined) {
+          setUserData(prev => ({
+            ...prev,
+            total_points: result.user_total_points
+          }));
+        }
+      } else {
+        setError(result.message || 'Failed to fetch points data');
+      }
+    } catch (err) {
+      console.error('Error fetching user points:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUserStats = async (username) => {
+    try {
+      setStatsLoading(true);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/user/${username}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch user stats: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.success && result.data.github_stats) {
+        const stats = result.data.github_stats;
+        
+        // Transform API data to match the expected format
+        const transformedStats = [
+          { id: 1, title: 'Pull Requests', value: stats.total_pull_requests.toString() },
+          { id: 2, title: 'Contributed Repos', value: stats.repositories_contributed_to.toString() },
+          { id: 3, title: 'Forked Repos', value: stats.forked_repositories.toString() },
+          { id: 4, title: 'Longest Streak', value: stats.longest_streak.toString() }
+        ];
+        
+        setStatsData(transformedStats);
+      } else {
+        console.error('Failed to fetch user stats:', result.message || 'Unknown error');
+        // Fallback to default stats if API fails
+        setStatsData([
+          { id: 1, title: 'Pull Requests', value: '0' },
+          { id: 2, title: 'Contributed Repos', value: '0' },
+          { id: 3, title: 'Forked Repos', value: '0' },
+          { id: 4, title: 'Longest Streak', value: '0' }
+        ]);
+      }
+    } catch (err) {
+      console.error('Error fetching user stats:', err);
+      // Fallback to default stats if API fails
+      setStatsData([
+        { id: 1, title: 'Pull Requests', value: '0' },
+        { id: 2, title: 'Contributed Repos', value: '0' },
+        { id: 3, title: 'Forked Repos', value: '0' },
+        { id: 4, title: 'Longest Streak', value: '0' }
+      ]);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
   const progressData = { title: 'PR Machine', percentage: 76, description: 'You are 5 PRs away from unlocking the PR Machine badge!' };
-  const statsData = [ { id: 1, title: 'Pull Requests', value: '25' }, { id: 2, title: 'Stars Received', value: '150' }, { id: 3, title: 'Forks Created', value: '50' }, { id: 4, title: 'Longest Streak', value: '30' } ];
-  const graphData = [ { x: 1, y: 10 }, { x: 2, y: 25 }, { x: 3, y: 15 }, { x: 4, y: 30 }, { x: 5, y: 20 }, { x: 6, y: 35 }, { x: 7, y: 28 }, { x: 8, y: 40 }, { x: 9, y: 32 }, { x: 10, y: 45 }];
-  const processedGraphData = graphData.map((dataPoint, index) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (graphData.length - index - 1));
-    return { date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), contributions: dataPoint.y };
-  });
 
   if (!userData) {
     return (
@@ -207,10 +319,88 @@ export default function ProfileView() {
       <main className="max-w-7xl mx-auto">
         <ProfileHeader user={userData} />
         <div className="space-y-8 mt-8">
-          <ProgressSection progress={progressData} />
-          <ContributionBreakdown stats={statsData} />
+
+          {statsLoading ? (
+            <section>
+              <h2 className="text-2xl font-semibold text-gray-200 mb-6">Contribution Breakdown</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="bg-black/40 p-6 rounded-2xl backdrop-blur-sm border border-white/10 animate-pulse">
+                    <div className="h-4 bg-gray-600 rounded mb-2"></div>
+                    <div className="h-8 bg-gray-600 rounded mb-4"></div>
+                    <div className="h-16 bg-gray-600 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : (
+            <ContributionBreakdown stats={statsData} />
+          )}
           <BadgesSection userScore={userData.total_points || 0} />
-          <ContributionsGraph data={processedGraphData} />
+          
+          {/* Points Graph Section */}
+          <section className="bg-black/40 rounded-2xl p-6">
+            <h2 className="text-2xl font-semibold text-white mb-6">Points Over Time</h2>
+            
+            {loading ? (
+              <div className="flex items-center justify-center h-64 text-gray-400">
+                Loading points data...
+              </div>
+            ) : error ? (
+              <div className="flex items-center justify-center h-64 text-red-400">
+                Error: {error}
+              </div>
+            ) : pointsData.length === 0 ? (
+              <div className="flex items-center justify-center h-64 text-gray-400">
+                No pull requests found for this user.
+              </div>
+            ) : (
+              <div style={{ width: '100%', height: 300 }}>
+                <ResponsiveContainer>
+                  <LineChart
+                    data={pointsData}
+                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff20" />
+                    <XAxis 
+                      dataKey="date" 
+                      stroke="#9CA3AF"
+                      tick={{ fill: '#9CA3AF', fontSize: 12 }} 
+                    />
+                    <YAxis 
+                      stroke="#9CA3AF"
+                      tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                      label={{ value: 'Points', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#9CA3AF' } }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'rgba(30, 20, 40, 0.9)', 
+                        borderColor: '#7C3AED',
+                        color: '#FFFFFF',
+                        borderRadius: '8px'
+                      }}
+                      labelStyle={{ color: '#D1D5DB' }}
+                      formatter={(value, name) => [`${value} points`, 'Points Earned']}
+                      labelFormatter={(label, payload) => {
+                        if (payload && payload[0]) {
+                          return `Date: ${payload[0].payload.fullDate}`;
+                        }
+                        return `Date: ${label}`;
+                      }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="contributions" 
+                      stroke="#8B5CF6" 
+                      strokeWidth={2} 
+                      activeDot={{ r: 6, stroke: '#8B5CF6', strokeWidth: 2, fill: '#FFFFFF' }}
+                      dot={{ r: 4, fill: '#8B5CF6' }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </section>
         </div>
       </main>
     </div>

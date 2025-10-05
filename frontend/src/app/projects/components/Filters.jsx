@@ -35,13 +35,13 @@ export default function Filters({ filters, setFilters }) {
   ];
 
   const forkRanges = [
-    { label: 'Any', value: null },
-    { label: '1-50', value: '1..50' },
-    { label: '50-100', value: '50..100' },
-    { label: '100-500', value: '100..500' },
-    { label: '500-1000', value: '500..1000' },
-    { label: '1k-5k', value: '1000..5000' },
-    { label: '5k+', value: '>=5000' },
+    { label: 'Any', value: null   },
+    { label: '1-50', value: null },
+    { label: '50-100', value: null },
+    { label: '100-500', value: null },
+    { label: '500-1000', value: null },
+    { label: '1k-5k', value: null },
+    { label: '5k+', value: null },
   ];
 
   const issueRanges = [
@@ -248,6 +248,22 @@ export default function Filters({ filters, setFilters }) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Only Show Projects with Good First Issues */}
+      <div className="mb-6">
+        <label className="inline-flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            checked={filters.onlyGoodFirstIssues || false}
+            onChange={() => setFilters({
+              ...filters,
+              onlyGoodFirstIssues: !filters.onlyGoodFirstIssues
+            })}
+            className="w-4 h-4 rounded bg-[#2a2a3e] border-gray-600 text-purple-600 focus:ring-purple-600 focus:ring-offset-0"
+          />
+          <span className="ml-3 text-sm text-gray-300">Only show projects with good first issues</span>
+        </label>
       </div>
     </div>
   );

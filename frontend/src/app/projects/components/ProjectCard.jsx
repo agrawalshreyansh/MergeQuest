@@ -59,17 +59,55 @@ export default function ProjectCard({ project }) {
   return (
     <div className="bg-[#2a2a3e] rounded-lg overflow-hidden hover:transform hover:scale-105 transition-all duration-300 flex flex-col">
       {/* Project Icon/Header */}
-      <div className={`h-32 bg-gradient-to-br ${getGradient()} flex items-center justify-center`}>
-        <div className="text-white text-6xl font-bold opacity-90">
-          {(project.name || 'P').charAt(0).toUpperCase()}
-        </div>
+      <div className={`h-32 bg-gradient-to-br ${getGradient()} flex items-center justify-center relative`}>
+        {project.owner?.avatar_url ? (
+          <img 
+            src={project.owner.avatar_url} 
+            alt={`${project.owner.login}'s avatar`}
+            className="w-20 h-20 rounded-full border-2 border-white object-cover shadow-lg"
+            onError={(e) => {
+              // If image fails to load, replace with first letter of repo name
+              e.target.style.display = 'none';
+              e.target.parentNode.innerHTML = `<div class="text-white text-6xl font-bold opacity-90">${(project.name || 'P').charAt(0).toUpperCase()}</div>`;
+            }}
+          />
+        ) : (
+          <div className="text-white text-6xl font-bold opacity-90">
+            {(project.name || 'P').charAt(0).toUpperCase()}
+          </div>
+        )}
       </div>
 
       {/* Project Info */}
       <div className="p-5 flex-1 flex flex-col">
-        <h3 className="text-xl font-semibold text-white mb-2 truncate">
+        <h3 className="text-xl font-semibold text-white mb-1 truncate">
           {project.name || 'Unnamed Project'}
         </h3>
+        
+        {/* Owner info */}
+        {project.owner && (
+          <div className="flex items-center gap-2 mb-3">
+            <img 
+              src={project.owner.avatar_url} 
+              alt={`${project.owner.login}'s avatar`} 
+              className="w-5 h-5 rounded-full"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+            <span className="text-purple-400 text-sm">@{project.owner.login}</span>
+            {project.owner.type && (
+              <span className={`text-xs px-1.5 py-0.5 rounded ${
+                project.owner.type === 'Organization' 
+                  ? 'bg-blue-500/20 text-blue-400' 
+                  : 'bg-green-500/20 text-green-400'
+              }`}>
+                {project.owner.type}
+              </span>
+            )}
+          </div>
+        )}
+        
         <p className="text-gray-400 text-sm mb-4 line-clamp-2 flex-1">
           {project.description || 'No description available'}
         </p>
@@ -95,16 +133,20 @@ export default function ProjectCard({ project }) {
         </div>
 
         {/* Good First Issues Badge */}
-        {(project.good_first_issues || project.goodFirstIssuesCount) > 0 && (
-          <div className="mb-4">
+        <div className="mb-4">
+          {(project.good_first_issues || project.goodFirstIssuesCount) > 0 ? (
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs font-medium">
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               {project.good_first_issues || project.goodFirstIssuesCount} good first issue{(project.good_first_issues || project.goodFirstIssuesCount) !== 1 ? 's' : ''}
             </span>
-          </div>
-        )}
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-500/10 text-gray-400 rounded text-xs font-medium">
+              No good first issues
+            </span>
+          )}
+        </div>
 
         {/* Last Update */}
         <div className="text-xs text-gray-500 mb-4">
@@ -113,7 +155,7 @@ export default function ProjectCard({ project }) {
 
         {/* View Project Button */}
         <a
-          href={project.url || project.html_url || '#'}
+          href={project.html_url}
           target="_blank"
           rel="noopener noreferrer"
           className="w-full py-2 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-center font-medium transition-colors"

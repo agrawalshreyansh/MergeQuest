@@ -31,7 +31,7 @@ export default function Navbar() {
   const navLinks = [
     { href: "/", text: "Home", showOnlyLoggedOut: true },
     { href: "/leaderboard", text: "Leaderboard" },
-    { href: "/prs", text: "PRs" },
+    { href: "/prs", text: "PRs", requiresAuth: true },
     { href: "/badges", text: "Badges" },
     { href: "/about", text: "About" },
     { href: "/projects", text: "Projects" }
@@ -56,7 +56,11 @@ export default function Navbar() {
         {/* Centered Links */}
         <div className="flex-1 flex justify-center gap-10 text-xl">
           {navLinks
-            .filter(link => !user || !link.showOnlyLoggedOut)
+            .filter(link => (
+              (!user && !link.requiresAuth && !link.showOnlyLoggedOut) || 
+              (user && !link.showOnlyLoggedOut) ||
+              (!user && link.showOnlyLoggedOut)
+            ))
             .map((link, index) => (
               <Link 
                 key={link.href} 

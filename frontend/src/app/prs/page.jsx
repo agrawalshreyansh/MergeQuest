@@ -1,17 +1,32 @@
 'use client';
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from 'next/navigation';
 
 export default function PrsPage() {
+  const router = useRouter();
   const [username, setUsername] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const userData = localStorage.getItem("user");
-    if (userData) {
-      const user = JSON.parse(userData);
-      setUsername(user.name);
+    if (!userData) {
+      router.push('/');
+      return;
     }
-  }, []);
+    
+    const user = JSON.parse(userData);
+    setUsername(user.name);
+    setLoading(false);
+  }, [router]);
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
+  if (!username) {
+    return null;
+  }
 
   return <PullRequestsDashboard username={username} />;
 }

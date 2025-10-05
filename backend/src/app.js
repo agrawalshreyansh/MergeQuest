@@ -3,7 +3,7 @@ import cors from 'cors';
 import userRouter from './router/user.router.js';
 import cookieParser from "cookie-parser"
 import badgesRouter from './router/badges.router.js';
-// import pullRequestsRouter from './router/pullRequests.router.js';
+import pullRequestsRouter from './router/pullRequests.router.js';
 
 const app = express();
 
@@ -28,7 +28,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/users', userRouter);
 app.use('/api/badges', badgesRouter);
-// app.use('/api/pullrequests', pullRequestsRouter);
+app.use('/api/pullrequests', pullRequestsRouter);
 
 app.get('/', (req, res) => {
   res.status(200).json({

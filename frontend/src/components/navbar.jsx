@@ -28,9 +28,17 @@ export default function Navbar() {
     window.location.reload();
   };
 
+  const navLinks = [
+    { href: "/", text: "Home", showOnlyLoggedOut: true },
+    { href: "/leaderboard", text: "Leaderboard" },
+    { href: "/badges", text: "Badges" },
+    { href: "/about", text: "About" },
+    { href: "/projects", text: "Projects" }
+  ];
+
   return (
     <>
-      <nav className="fixed w-full text-white px-10 py-4 flex items-center justify-between font-sans transition-all duration-300 ease-in-out z-50">
+      <nav className="fixed w-full bg-[#191120] text-white px-10 py-4 flex items-center justify-between font-sans transition-all duration-300 ease-in-out z-50">
         {/* Logo */}
         <div className="text-2xl font-bold transition-transform duration-300 hover:scale-105">
           <Link href="/">
@@ -46,22 +54,18 @@ export default function Navbar() {
 
         {/* Centered Links */}
         <div className="flex-1 flex justify-center gap-10 text-xl">
-          {[
-            { href: "/", text: "Home" },
-            { href: "/leaderboard", text: "Leaderboard" },
-            { href: "/badges", text: "Badges" },
-            { href: "/about", text: "About" },
-            { href: "/projects", text: "Projects" }
-          ].map((link, index) => (
-            <Link 
-              key={link.href} 
-              href={link.href} 
-              className="hover:underline transition-all duration-300 hover:text-purple-400"
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              {link.text}
-            </Link>
-          ))}
+          {navLinks
+            .filter(link => !user || !link.showOnlyLoggedOut)
+            .map((link, index) => (
+              <Link 
+                key={link.href} 
+                href={link.href} 
+                className="hover:underline transition-all duration-300 hover:text-purple-400"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                {link.text}
+              </Link>
+            ))}
         </div>
 
         {/* Auth Section */}
@@ -102,12 +106,7 @@ export default function Navbar() {
             </div>
           ) : (
             // If not logged in, show "Login with GitHub"
-            <Link
-              href="/api/auth/github" // Your GitHub auth route
-              className="border border-white px-4 py-2 rounded transition-colors duration-300 hover:bg-[#442A64]"
-            >
-              Login with GitHub
-            </Link>
+<div></div>
           )}
         </div>
       </nav>

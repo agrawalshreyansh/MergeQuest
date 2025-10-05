@@ -1,23 +1,16 @@
 'use client';
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from 'next/navigation';
 
 export default function PrsPage() {
-  const router = useRouter();
   const [username, setUsername] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const userData = localStorage.getItem("user");
-    if (!userData) {
-      router.push('/');
-      return;
-    }
+    console.log("📦 User data from localStorage:", userData);
     
     const user = JSON.parse(userData);
-    // Use github_id if available, fallback to name
-    setUsername(user.github_id || user.name);
+    setUsername(user.name);
     setLoading(false);
   }, [router]);
 
@@ -45,17 +38,20 @@ const PullRequestsDashboard = ({ username }) => {
   // filters
   const [statusFilter, setStatusFilter] = useState("all");
   const [repoFilter, setRepoFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("30"); // days
+  const [dateFilter, setDateFilter] = useState("all"); // show all PRs by default
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    if (!username) return;
+    if (!username) {
+      console.log("⚠️ No username provided, skipping fetch");
+      return;
+    }
+    
     const fetchData = async () => {
       try {
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
         const encodedUsername = encodeURIComponent(username);
         const res = await fetch(
-          `${API_URL}/github/user/prs/${encodedUsername}`,
+          `${process.env.NEXT_PUBLIC_API_URL}/github/user/prs/${encodedUsername}`,
           {
             method: "GET",
             headers: { "Content-Type": "application/json" },
@@ -63,31 +59,29 @@ const PullRequestsDashboard = ({ username }) => {
           }
         );
 
-        if (!res.ok) {
-          const text = await res.text().catch(() => '');
-          throw new Error(`HTTP error! status: ${res.status} ${text}`);
-        }
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
         const response = await res.json();
         const prsArray = response.data || [];
         setPullRequests(prsArray);
 
         // calculate stats
-        let merged = 0,
-          pending = 0,
-          rejected = 0;
+        let merged = 0, pending = 0, rejected = 0;
 
         prsArray.forEach((pr) => {
-          if (pr.status === "merged") merged++;
-          else if (pr.status === "open") pending++;
-          else if (pr.status === "closed") rejected++;
+          const state = pr.state?.toLowerCase();
+          if (state === "merged" || pr.merged === true) merged++;
+          else if (state === "open") pending++;
+          else if (state === "closed" && !pr.merged) rejected++;
         });
+
+        console.log("📊 Stats - Merged:", merged, "Pending:", pending, "Rejected:", rejected);
 
         setMergedCount(merged);
         setPendingCount(pending);
         setRejectedCount(rejected);
       } catch (err) {
-        console.error("Error fetching PRs:", err);
+        console.error("💥 Error fetching PRs:", err);
         setPullRequests([]);
         setMergedCount(0);
         setPendingCount(0);
@@ -96,28 +90,59 @@ const PullRequestsDashboard = ({ username }) => {
         setLoading(false);
       }
     };
+    
     fetchData();
   }, [username]);
 
   // filtering logic
   useEffect(() => {
+    console.log("🔍 Filtering PRs. Total:", pullRequests.length);
+    
+    // Log all unique states
+    const states = [...new Set(pullRequests.map(pr => pr.state))];
+    console.log("📊 Unique PR states:", states);
+    console.log("📊 PR state breakdown:", pullRequests.map(pr => ({ 
+      title: pr.title?.substring(0, 30), 
+      state: pr.state, 
+      merged: pr.merged 
+    })));
+    
     let prs = [...pullRequests];
 
     // status filter
     if (statusFilter !== "all") {
-      prs = prs.filter((pr) => pr.status === statusFilter);
+      prs = prs.filter((pr) => {
+        const state = pr.state?.toLowerCase();
+        if (statusFilter === "merged") {
+          return state === "merged" || pr.merged === true;
+        } else if (statusFilter === "open") {
+          return state === "open";
+        } else if (statusFilter === "closed") {
+          return state === "closed" && pr.merged !== true;
+        }
+        return true;
+      });
+      console.log(`  ✓ Status filter (${statusFilter}):`, prs.length);
     }
 
     // repo filter
     if (repoFilter !== "all") {
-      prs = prs.filter((pr) => pr.repository.name === repoFilter);
+      prs = prs.filter((pr) => {
+        const repoName = pr.repository?.name || pr.repo_name;
+        return repoName === repoFilter;
+      });
+      console.log(`  ✓ Repo filter (${repoFilter}):`, prs.length);
     }
 
     // date filter
     if (dateFilter !== "all") {
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - parseInt(dateFilter));
-      prs = prs.filter((pr) => new Date(pr.createdAt) >= cutoff);
+      prs = prs.filter((pr) => {
+        const createdDate = new Date(pr.createdAt || pr.created_at);
+        return createdDate >= cutoff;
+      });
+      console.log(`  ✓ Date filter (${dateFilter} days):`, prs.length);
     }
 
     // search filter
@@ -125,8 +150,10 @@ const PullRequestsDashboard = ({ username }) => {
       prs = prs.filter((pr) =>
         pr.title.toLowerCase().includes(search.toLowerCase())
       );
+      console.log(`  ✓ Search filter ("${search}"):`, prs.length);
     }
 
+    console.log("📌 Final filtered PRs:", prs.length);
     setFilteredPRs(prs);
   }, [pullRequests, statusFilter, repoFilter, dateFilter, search]);
 
@@ -134,8 +161,10 @@ const PullRequestsDashboard = ({ username }) => {
 
   // unique repos for dropdown
   const repos = [
-    ...new Set(pullRequests.map((pr) => pr.repository?.name || "")),
-  ];
+    ...new Set(pullRequests.map((pr) => pr.repository?.name || pr.repo_name || "")),
+  ].filter(r => r !== "");
+  
+  console.log("🏢 Available repos:", repos);
 
   return (
     <div className="p-6 text-white bg-[#191120] min-h-screen pt-20">
@@ -238,43 +267,43 @@ const PullRequestsDashboard = ({ username }) => {
         <div className="grid grid-cols-3 gap-6">
           {filteredPRs.map((pr, idx) => (
             <div
-              key={idx}
+              key={pr._id || idx}
               className="group bg-black/40 backdrop-blur-sm p-6 rounded-xl border border-purple-500/20 hover:border-purple-500/40 transition-all duration-300"
             >
               <h3 className="text-lg font-semibold mb-2 group-hover:text-purple-400 transition-colors">
                 {pr.title}
               </h3>
               <p className="text-sm text-gray-400 mb-3">
-                {pr.repository.owner.login}/{pr.repository.name}
+                {pr.repository?.name || pr.repo_name || 'Unknown Repo'}
               </p>
               <div className="space-y-1 mb-4">
                 <p className="text-xs text-gray-500">
-                  Opened: {new Date(pr.createdAt).toLocaleDateString()}
+                  Opened: {new Date(pr.createdAt || pr.created_at).toLocaleDateString()}
                 </p>
                 <p className="text-xs text-gray-500">
-                  Updated: {new Date(pr.updatedAt).toLocaleDateString()}
+                  Updated: {new Date(pr.updatedAt || pr.updated_at || pr.createdAt || pr.created_at).toLocaleDateString()}
                 </p>
               </div>
 
               <div className="flex justify-between items-center">
                 <span
                   className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    pr.status === "merged"
+                    pr.state?.toLowerCase() === "merged" || pr.merged === true
                       ? "bg-green-500/20 text-green-400"
-                      : pr.status === "open"
+                      : pr.state?.toLowerCase() === "open"
                       ? "bg-yellow-500/20 text-yellow-400"
                       : "bg-red-500/20 text-red-400"
                   }`}
                 >
-                  {pr.status === "merged"
+                  {pr.state?.toLowerCase() === "merged" || pr.merged === true
                     ? "Merged"
-                    : pr.status === "open"
+                    : pr.state?.toLowerCase() === "open"
                     ? "Pending"
                     : "Rejected"}
                 </span>
 
                 <a
-                  href={pr.url}
+                  href={pr.url || pr.html_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-purple-400 hover:text-purple-300 text-sm flex items-center gap-1 transition-colors"

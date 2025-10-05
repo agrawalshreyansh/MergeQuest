@@ -1,44 +1,35 @@
 'use client';
 import React from 'react';
-import Image from 'next/image';
 
-const Badge = ({ src, title }) => (
+const Badge = ({ bgColor, title, glowColor }) => (
   <div className="flex flex-col items-center text-center">
     <div
-      className="
+      className={`
         w-40 h-40 md:w-48 md:h-48
-        bg-black/20
+        ${bgColor}
         rounded-2xl
         shadow-lg
         hover:shadow-2xl hover:-translate-y-1 transition-all duration-300
-        hover:shadow-purple-500/40
-        flex items-center justify-center
-        border border-purple-500/20
-      "
+        ${glowColor}
+      `}
     >
-      <Image
-        src={src}
-        alt={title}
-        width={240}
-        height={240}
-        className="object-contain"
-      />
     </div>
+    <p className="mt-4 font-semibold text-gray-200">{title}</p>
   </div>
 );
 
 const LandingPage = () => {
   const badges = [
-    { title: 'Bronze Contributor', src: '/1.png' },
-    { title: 'Silver Committer', src: '/2.png' },
-    { title: 'Golden Pull Request', src: '/3.png' },
-    { title: 'Diamond Issue Solver', src: '/4.png' },
-    { title: 'Legendary Code Ninja', src: '/5.png' },
+    { title: 'Bronze Contributor', bgColor: 'bg-teal-900', glowColor: 'hover:shadow-teal-500/40' },
+    { title: 'Silver Committer', bgColor: 'bg-lime-900', glowColor: 'hover:shadow-lime-500/40' },
+    { title: 'Golden Pull Request', bgColor: 'bg-slate-800', glowColor: 'hover:shadow-blue-500/40' },
+    { title: 'Diamond Issue Solver', bgColor: 'bg-slate-700', glowColor: 'hover:shadow-gray-400/40' },
+    { title: 'Legendary Code Ninja', bgColor: 'bg-indigo-900', glowColor: 'hover:shadow-indigo-500/40' },
   ];
 
   const openPopup = () => {
     const CLIENT_ID = "Ov23liEmXHdfU7FXmH3m";
-    const REDIRECT_URI = "https://merge-quest.vercel.app/oauth-callback"; // Explicit URL instead of dynamic
+    const REDIRECT_URI = "https://merge-quest-hcwslo8kq-shrages-projects-e1cadf02.vercel.app/oauth-callback"; // Explicit URL instead of dynamic
 
     const url = `https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=user:email`;
     console.log("OAuth URL:", url); // Debug log

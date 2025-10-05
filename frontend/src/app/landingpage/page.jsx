@@ -38,7 +38,7 @@ const LandingPage = () => {
 
   const openPopup = () => {
     const CLIENT_ID = "Ov23liEmXHdfU7FXmH3m";
-    const REDIRECT_URI = "http://localhost:3000/oauth-callback"; // Explicit URL instead of dynamic
+    const REDIRECT_URI = "https://merge-quest.vercel.app/oauth-callback"; // Explicit URL instead of dynamic
 
     const url = `https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=user:email`;
     console.log("OAuth URL:", url); // Debug log
